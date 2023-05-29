@@ -254,6 +254,54 @@ impl MmapInner {
         }
     }
 
+    #[cfg(target_os = "linux")]
+    pub fn remap(&mut self, new_len: usize, options: crate::RemapOptions) -> io::Result<()> {
+        use std::isize;
+
+        // Rust's slice cannot be larger than isize::MAX.
+        // See https://doc.rust-lang.org/std/slice/fn.from_raw_parts.html
+        //
+        // This is not a problem on 64-bit targets, but on 32-bit one
+        // having a file or an anonymous mapping larger than 2GB is quite normal
+        // and we have to prevent it.
+        //
+        // The code below is essentially the same as in Rust's std:
+        // https://github.com/rust-lang/rust/blob/db78ab70a88a0a5e89031d7ee4eccec835dcdbde/library/alloc/src/raw_vec.rs#L495
+        if std::mem::size_of::<usize>() < 8 && new_len > isize::MAX as usize {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "memory map length overflows isize",
+            ));
+        }
+
+        // Undo the pointer adjustments done as part of MmapInner::new to recover
+        // the pointer and length passed to mmap.
+        //
+        // See the comments in MmapInner::new for relevant details.
+        let alignment = self.ptr() as usize % page_size();
+        let old_len = self.len() + alignment;
+        let old_len = old_len.max(1);
+
+        let old_ptr = unsafe { self.ptr.offset(-(alignment as isize)) };
+
+        // Adjust the new length to reflect that the start of the memory map is
+        // actually at the start of the nearest page.
+        let aligned_new_len = new_len + alignment;
+        let aligned_new_len = aligned_new_len.max(1);
+
+        unsafe {
+            let new_ptr = libc::mremap(old_ptr, old_len, aligned_new_len, options.into_flags());
+
+            if new_ptr == libc::MAP_FAILED {
+                Err(io::Error::last_os_error())
+            } else {
+                self.ptr = new_ptr.offset(alignment as isize);
+                self.len = new_len;
+                Ok(())
+            }
+        }
+    }
+
     pub fn lock(&self) -> io::Result<()> {
         unsafe {
             if libc::mlock(self.ptr, self.len) != 0 {
