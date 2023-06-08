@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2023-06-08
+### Added
+- `Mmap::remap`, `MmapMut::remap` and `MmapRaw::remap`. Linux-only.
+  [@Phantomical](https://github.com/Phantomical)
+- `Advice::PopulateRead` and `Advice::PopulateWrite`. Linux-only.
+  [@Jesse-Bakker](https://github.com/Jesse-Bakker)
+
+### Changed
+- libc crate >= 0.2.143 is required now.
+
 ## [0.6.2] - 2023-05-24
 ### Fixed
 - Alignment for empty files on Windows.
@@ -150,7 +160,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Removed
 - `winapi` dependency. [memmap-rs/pull/89](https://github.com/danburkert/memmap-rs/pull/89)
 
-[Unreleased]: https://github.com/RazrFalcon/memmap2-rs/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/RazrFalcon/memmap2-rs/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/RazrFalcon/memmap2-rs/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/RazrFalcon/memmap2-rs/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/RazrFalcon/memmap2-rs/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/RazrFalcon/memmap2-rs/compare/v0.5.10...v0.6.0
