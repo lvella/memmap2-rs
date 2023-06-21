@@ -1,5 +1,6 @@
 extern crate libc;
 
+use std::convert::TryInto;
 use std::fs::File;
 use std::mem::ManuallyDrop;
 use std::os::unix::io::{FromRawFd, RawFd};
@@ -45,7 +46,15 @@ impl MmapInner {
         offset: u64,
     ) -> io::Result<MmapInner> {
         let alignment = offset % page_size() as u64;
-        let aligned_offset = offset - alignment;
+        let aligned_offset: libc::off_t = (offset - alignment).try_into().map_err(|_| {
+            // On some platforms, libc exposed by rust uses 32 bit for file
+            // offset. In these cases, we can't honor requests for mappings
+            // starting from beyond the initial 4 GB.
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "memory map offset overflows libc::off_t",
+            )
+        })?;
 
         let (map_len, map_offset) = Self::adjust_mmap_params(len as usize, alignment as usize)?;
 
@@ -56,7 +65,7 @@ impl MmapInner {
                 prot,
                 flags,
                 file,
-                aligned_offset as libc::off_t,
+                aligned_offset,
             );
 
             if ptr == libc::MAP_FAILED {
